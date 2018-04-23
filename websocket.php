@@ -28,12 +28,12 @@ private $openid=null;
 		    if($data['login']==1){ 
                $this->openid=$data['qq_openid'];
 		      if(!empty($this->openid)){
-		       $status=$this->redis->sismember("user_list",$this->openid);;//获取在线用户表
-
+		       $status=$this->redis->zscore("user_list",$this->openid);;//获取在线用户表
+                  
 			   if(empty($status)){
 			   //redis记录用户信息,除了qq_openid,其他参数都会变
 				 $arr=array(
-					"fd"=>$job->fd,  //用户df
+                         "fd"=>$job->fd,
 					"name"=>$data['user_info']['nickname'],
 				     "figureurl"=>$data['user_info']['figureurl'],
 					"time"=>date("Y-m-d H:i:s",time()),
@@ -42,7 +42,7 @@ private $openid=null;
 			   $this->redis->hmset($this->openid,$arr); //记录用户信息
 
                   //登录成功后先记录到在线用户set集合user_list，然后获取在线用户信息列表
-                  $this->redis->sadd('user_list',$this->openid);
+                  $this->redis->zAdd('user_list',$job->fd,$this->openid);
 			   $user_list_json=$this->json_user_list();
 
 			   $this->send(1,0,$user_list_json); //将在线用户列表发给所有人
@@ -51,10 +51,8 @@ private $openid=null;
 				//关闭重复登录客户端	
                     echo "重复登录！";
 			     $msg=array("close"=>1,"msg"=>"您已经在别地登录!");
-
-                    $json=json_encode($msg);
+				$json=json_encode($msg);
 				$this->send(0,$job->fd,$json);
-			     $this->ws->close($job->fd);
 
 			   }
  
@@ -72,10 +70,12 @@ private $openid=null;
 	 //监听websocket链接关闭事件
 	 $this->ws->on('close',function($ws,$fd){
 
-	  echo "client-{$this->openid} is closed\n";
-       $this->redis->srm("user_list",$this->openid);//设置登录状态未登录	 
-	
-    
+       echo "client-{$fd} is closed\n";
+       $close_user=$this->redis->zrangebyscore("user_list",$fd,$fd);
+       //var_dump($close_user);
+       $this->redis->zrem("user_list",$close_user[0]);//设置登录状态未登录	 
+       	
+       var_dump($close_user);
       //刷新好友列表
 
 	 });
@@ -99,13 +99,13 @@ private $openid=null;
 
  //获取所有在线用户信息
  private function json_user_list(){
-        $user_list=$this->redis->smembers('user_list');
+        $user_list=$this->redis->zrangebyscore('user_list', 0, 1000000);
 	   $list=array();
-	   foreach($user_list $k=>$v){      
+	   foreach($user_list as  $k=>$v){      
 		 $arr[$v]=$this->redis->hgetall($v);
 	   }
-	   $list[type]="user_list";
-	   $list[user_list]=$arr;
+	   $list['type']="user_list";
+	   $list['user_list']=$arr;
 	   return json_encode($list);
  }
 

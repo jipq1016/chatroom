@@ -13,12 +13,11 @@ if($_GET['clear']==1){  //清空qq登录记录
 	   $_SESSION['qqUser']="";
         $qq_openid="";
 	   $qq_user="";
-}
-
+}else{
 $user['login']=1;
 $user['qq_openid']=$qq_openid;
 $user['user_info']=$qq_user;
-
+}
 
 $qq_user_json=json_encode($user);
 
@@ -66,11 +65,12 @@ $qq_user_json=json_encode($user);
 		  } 
             
 		  if(json_data.type=="user_list"){
-		    
-	       123	  
-		  
+             $(".member_list").html("<div onclick='select(all)'>全部</div>");
+		   $.each(json_data.user_list,function(key,val){
+			$(".member_list").append("<div onclick='select("+val.fd+")'><img src="+val.figureurl+">"+val.name+"</div>");  	    
+		   }) 
 		  }
-
+           
 
     };
 
@@ -90,6 +90,19 @@ init();
 }
 ?>
 
+//选择发送对象
+function select(num){
+  if(num=="all"){
+    //发给所有人	   
+  
+  }else{
+    //发给指定的人
+  
+  }
+
+}
+
+//发送数据
 function get_message(){
  var send_msg=$('#message').val();
  websocket.send(send_msg);
@@ -128,7 +141,7 @@ function toLogin()
 <div class="member_list">
 <span>用户列表</span>
 
-<div><a>全部</a></div>
+
 </div>
 <div class="message_list">
 <p class="who">全部</p>

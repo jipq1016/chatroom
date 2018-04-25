@@ -33,7 +33,8 @@ $qq_user_json=json_encode($user);
   var websocket = null;
   var is_log = false;
   var usr = '';
-
+  var num= "";
+  var qq_openid="<?php echo $qq_openid?>";
  function init(){
     var wsServer='ws://115.28.167.236:9500';
     websocket=new WebSocket(wsServer);
@@ -64,14 +65,52 @@ $qq_user_json=json_encode($user);
 		    location.href="?clear=1";//清空保存的session
 		  } 
             
-		  if(json_data.type=="user_list"){
-             $(".member_list").html("<div onclick='select(all)'>全部</div>");
+		  if(json_data.type=="user_list"){ //更新用户列表
+             $(".member_list").html("<div onclick=select('all')>全部</div>");
+		   user_list=new Array();
 		   $.each(json_data.user_list,function(key,val){
-			$(".member_list").append("<div onclick='select("+val.fd+")'><img src="+val.figureurl+">"+val.name+"</div>");  	    
+				 var str="";
+				 if(key==qq_openid){
+				 str="style='display:none'";
+				 }		    
+		     user_list[val.fd]='<img src='+val.figureurl+'>'+val.name; 
+			$(".member_list").append("<div "+str+" onclick='select("+val.fd+")'><img src="+val.figureurl+">"+val.name+"</div>");  	    
+		   
 		   }) 
 		  }
-           
+		  if(json_data.type=="msg"){
+		     fromfd=json_data.from;
+		     msg=json_data.msg;
+			time=json_data.time;
+			console.log(user_list);
+		     $.each(user_list,function(k,v){
+				  if(v!="" || v!="undefined"){ 
+				   if(k==fromfd){
+				     userdata=v;
+				   }
+				  }
+			});
 
+			if(json_data.is_all=="1"){
+			str='<div class="all" style="display:none">'+userdata+'对大家说:'+msg+'<br>'+time+'</div>';
+			}else{
+			str='<div class="f_'+fromfd+'" style="display:none">'+userdata+':'+msg+'<br>'+time+'</div>';
+			}	
+
+		    $(".message_list").append(str);	
+			//当前对象
+			num=$('#num').val();
+		    if(num=="all"){
+			$("div[class^='f_']").hide();	   
+		     $('.all').show();
+		    }else{
+		     $('.all').hide();
+			$("div[class^='f_']").hide();	   
+               $('.f_'+num).show();
+		    }
+
+ $('.message_list')[0].scrollTop= $('.message_list')[0].scrollHeight; 
+		  }
     };
 
     websocket.onerror = function (evt,e){
@@ -91,24 +130,47 @@ init();
 ?>
 
 //选择发送对象
-function select(num){
+function select(num){	   
   if(num=="all"){
     //发给所有人	   
-  
+    $('.who').html('全部');  
+			$("div[class^='f_']").hide();	   
+    $('.all').show();
   }else{
     //发给指定的人
-  
+    $('.who').html(user_list[num]);		
+			$("div[class^='f_']").hide();	   
+    $('.all').hide();
+    $('.f_'+num).show();
   }
+   
+		    
+		    
+ $('.message_list')[0].scrollTop= $('.message_list')[0].scrollHeight; 
 
+   $("#num").val(num);
 }
 
 //发送数据
 function get_message(){
- var send_msg=$('#message').val();
- websocket.send(send_msg);
+ var send_msg=$.trim($('#message').val());
+ num=$("#num").val();
+ if(send_msg==""){ return  }
+ if(num==""){
+ num="all";
+ }
+ var data={'to_fd':num,'msg':send_msg};
+ var json=JSON.stringify(data);
+ websocket.send(json);
 
- $('.message_list').append(send_msg+'<br><br>');
+ if(num!='all'){
+ $('.message_list').append('<div class="f_'+num+' right">'+send_msg+'</div>');
+ }else{
+ //$('.message_list').append('<div class="all">'+send_msg+'</div>');
+ }
 
+ $('.message_list').scrollTop = $('.message_list').scrollHeight; 
+ $("#message").val("");
 }
 
 function toLogin()
@@ -131,9 +193,11 @@ function toLogin()
 </script>
 
 <style>
-.message_list{width:700px;height:300px;border:1px solid #000000;margin:10px;margin-left:210px;}
-.member_list{float:left;width:200px;height:300px;border:1px solid #666666}
+.message_list{overflow:scroll;width:700px;height:300px;border:1px solid #000000;margin:10px;margin-left:210px;}
+.member_list{overflow:scroll;float:left;width:200px;height:300px;border:1px solid #666666}
 .message{width:500px;height:50px;}
+.right{text-align:right};
+.who{width:100%;}
 </style>
 </head>
 <body>
@@ -144,13 +208,13 @@ function toLogin()
 
 </div>
 <div class="message_list">
-<p class="who">全部</p>
+<p class="who" align="center">全部</p>
 </div>
 </div>
 <br/><br/>
 <input class='message' type='text' id="message">
 <br/><br/>
-
+<input type="hidden" id="num" value="all">
 <?php
 if(empty($qq_openid)){
 ?>

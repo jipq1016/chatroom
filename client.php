@@ -66,7 +66,7 @@ $qq_user_json=json_encode($user);
 		  } 
             
 		  if(json_data.type=="user_list"){ //更新用户列表
-             $(".member_list").html("<div onclick=select('all')>全部</div>");
+             $(".member_list").html("<div onclick=select('all')>全部<span id='all_num'></span></div>");
 		   user_list=new Array();
 		   $.each(json_data.user_list,function(key,val){
 				 var str="";
@@ -74,7 +74,7 @@ $qq_user_json=json_encode($user);
 				 str="style='display:none'";
 				 }		    
 		     user_list[val.fd]='<img src='+val.figureurl+'>'+val.name; 
-			$(".member_list").append("<div "+str+" onclick='select("+val.fd+")'><img src="+val.figureurl+">"+val.name+"</div>");  	    
+			$(".member_list").append("<div "+str+" onclick='select("+val.fd+")'><img src="+val.figureurl+">"+val.name+"<span id='num_"+val.fd+"' class='red'></span></div>");  	    
 		   
 		   }) 
 		  }
@@ -93,8 +93,14 @@ $qq_user_json=json_encode($user);
 
 			if(json_data.is_all=="1"){
 			str='<div class="all" style="display:none">'+userdata+'对大家说:'+msg+'<br>'+time+'</div>';
+			count=$('#all_num').html();
+			if(count==""){ count =0;}
+			$('#all_num').html(parseInt(count)+1);
 			}else{
 			str='<div class="f_'+fromfd+'" style="display:none">'+userdata+':'+msg+'<br>'+time+'</div>';
+			count=$('#num_'+fromfd).html();	
+			if(count==""){ count =0;}
+			$('#num_'+fromfd).html(parseInt(count)+1);//没有读取的用户信息
 			}	
 
 		    $(".message_list").append(str);	
@@ -102,13 +108,12 @@ $qq_user_json=json_encode($user);
 			num=$('#num').val();
 		    if(num=="all"){
 			$("div[class^='f_']").hide();	   
-		     $('.all').show();
+			$('.all').show();
 		    }else{
 		     $('.all').hide();
 			$("div[class^='f_']").hide();	   
-               $('.f_'+num).show();
+			$('.f_'+num).show();
 		    }
-
  $('.message_list')[0].scrollTop= $('.message_list')[0].scrollHeight; 
 		  }
     };
@@ -136,12 +141,14 @@ function select(num){
     $('.who').html('全部');  
 			$("div[class^='f_']").hide();	   
     $('.all').show();
+    $('#all_num').html("");
   }else{
     //发给指定的人
     $('.who').html(user_list[num]);		
 			$("div[class^='f_']").hide();	   
     $('.all').hide();
     $('.f_'+num).show();
+    $('#num_'+num).html("");
   }
    
 		    
@@ -164,7 +171,7 @@ function get_message(){
  websocket.send(json);
 
  if(num!='all'){
- $('.message_list').append('<div class="f_'+num+' right">'+send_msg+'</div>');
+ $('.message_list').append('<div class="f_'+num+' right">对他说：'+send_msg+'</div>');
  }else{
  //$('.message_list').append('<div class="all">'+send_msg+'</div>');
  }
@@ -198,6 +205,8 @@ function toLogin()
 .message{width:500px;height:50px;}
 .right{text-align:right};
 .who{width:100%;}
+#all_num{color:#ff0000}
+.red{color:#ff0000}
 </style>
 </head>
 <body>

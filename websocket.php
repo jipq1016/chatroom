@@ -5,6 +5,7 @@ private $redis=null;
 
 private $ws=null;
 
+private $is_all=null;
 
  //构造函数
    function __construct(){
@@ -20,12 +21,11 @@ private $ws=null;
 
 	 //监听websocket消息事件
 	 $this->ws->on('message',function($ws,$job){
-
               //var_dump($job);
 		    $json=$job->data;
 		    $data=json_decode($json,1);
 		    /*登录部分开始*/
-		    if($data['login']==1){ 
+		    if(@$data['login']==1){ 
                $this->openid=$data['qq_openid'];
 		      if(!empty($this->openid)){
 		       $status=$this->redis->zscore("user_list",$this->openid);;//获取在线用户表
@@ -70,17 +70,34 @@ private $ws=null;
 				  $to_fd=$data['to_fd']; //给谁
 				  $msg=$data['msg'];     //内容
 				  $fromfd= $job->fd;
-				  
-			    if($to_fd=="all"){
+			 	  
+   			   if($to_fd=="all"){
 			       $is_all=1;
 			    }
 		      $msg_arr['type']="msg";
-                $msg_arr['is_all']=$is_all?:0;
+                @$msg_arr['is_all']=$is_all?:0;
 			 $msg_arr['from']=$fromfd;
 			 $msg_arr['msg']=$msg;
 			 $msg_arr['time']=date("Y-m-d H:i:s");
 			 $msg_json=json_encode($msg_arr);
-                $this->send($is_all,$to_fd,$msg_json);
+
+
+
+			 //保存到redis的list里缓存
+			 $from_openid=$this->redis->zrangebyscore('user_list',$job->fd,$job->fd);
+			 if($to_fd!="all"){
+			 $to_openid=$this->redis->zrangebyscore('user_list',$to_fd,$to_fd);
+			 $to_openid=$to_openid[0];
+			 }else{
+			  $to_openid='all';
+			 }
+		     	$redis_list['from']=$from_openid[0];
+				$redis_list['to']=$to_openid;
+				$redis_list['msg']=$msg;
+				$redis_list['datetime']=$msg_arr['time'];
+                $list_json=json_encode($redis_list);
+                $this->redis->lpush('message_list',$list_json);
+                $this->send(@$is_all,$to_fd,$msg_json);
 		    }  
 
 
